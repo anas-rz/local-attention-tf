@@ -1,4 +1,4 @@
-# Local Attention TensorFlow
+# Local Attention TensorFlow (The Ugly First Code)
 TensorFlow implementation of Local Windowed Attention for Language Modeling [Original](https://github.com/lucidrains/local-attention/).
 
 To do:
