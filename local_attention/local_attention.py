@@ -16,13 +16,19 @@ def l2norm(tensor):
     normed = tf.norm(tensor, axis = -1)
     return tf.cast(normed, dtype)
 
-def pad_to_multiple(tensor, multiple, axis=-2, value=0):
-    assert axis == -2, "Dynamic axis selection not added.."
-    seqlen = K.int_shape(tensor)[axis]
-    m = seqlen / multiple
-    if m.is_integer():
-        return False, tensor
-    remainder = math.ceil(m) * multiple - seqlen
-    paddings = [[0,0], [0, remainder], [0, 0]]
-    paddings = tf.convert_to_tensor(paddings,tf.int32)
-    return True, tf.pad(tensor, paddings, constant_values = value)
+def pad_sequence_to_multiple_of(seq, multiple, axis):
+
+    if axis < 0:
+        axis = len(tf.shape(seq)) + axis
+    shape = tf.shape(seq)
+    length = shape[axis]
+    remainder = length % multiple
+    padding = tf.cond(tf.equal(remainder, 0), 
+                      lambda: 0,
+                      lambda: multiple - remainder)
+    pad_shape = tf.concat([
+        shape[:axis],
+        tf.expand_dims(padding, axis=0),
+        shape[axis + 1:]], axis=0)
+    padding_tensor = tf.zeros(pad_shape, dtype=seq.dtype)
+    return tf.concat([seq, padding_tensor], axis=axis)
