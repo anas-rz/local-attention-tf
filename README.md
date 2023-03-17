@@ -4,7 +4,7 @@ TensorFlow implementation of Local Windowed Attention for Language Modeling [Ori
 To do:
 
 - [X] Implementing rotary module
-- [ ] Local Attention Module
+- [X] Local Attention Module
 - [ ] Transformer Module
 - [ ] Testing of the framework on real world dataset
 - [ ] Exposing as PyPI Package
