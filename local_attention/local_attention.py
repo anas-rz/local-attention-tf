@@ -32,3 +32,14 @@ def pad_sequence_to_multiple_of(seq, multiple, axis):
         shape[axis + 1:]], axis=0)
     padding_tensor = tf.zeros(pad_shape, dtype=seq.dtype)
     return tf.concat([seq, padding_tensor], axis=axis)
+
+def look_around(x, backward=1, forward=0, pad_value=-1, axis=2):
+    t = K.int_shape(x)[1]
+    tensor_rank = tf.rank(x)
+    f_i = len(K.int_shape(x)) - axis
+    padding_tensor = tf.zeros((tensor_rank, 2), dtype=tf.int32)
+    padding_tensor = tf.tensor_scatter_nd_update(padding_tensor, [[f_i, 0], [f_i, 1]], [backward, forward])
+    padded_x = tf.pad(x, padding_tensor, constant_values=pad_value)
+    print(padded_x.shape)
+    tensors = [padded_x[:, ind:(ind + t), ...] for ind in range(forward + backward + 1)]
+    return tf.concat(tensors, axis=axis)
