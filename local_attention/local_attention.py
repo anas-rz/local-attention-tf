@@ -31,12 +31,14 @@ def pad_sequence_to_multiple_of(seq, multiple, axis):
     padding = tf.cond(tf.equal(remainder, 0), 
                       lambda: 0,
                       lambda: multiple - remainder)
+    if padding == 0:
+        return False, seq
     pad_shape = tf.concat([
         shape[:axis],
         tf.expand_dims(padding, axis=0),
         shape[axis + 1:]], axis=0)
     padding_tensor = tf.zeros(pad_shape, dtype=seq.dtype)
-    return tf.concat([seq, padding_tensor], axis=axis)
+    return True, tf.concat([seq, padding_tensor], axis=axis)
 
 def look_around(x, backward=1, forward=0, pad_value=-1, axis=2):
     t = K.int_shape(x)[1]
@@ -56,7 +58,9 @@ class LocalAttention(layers.Layer):
         dropout = 0.,
         exact_windowsize = False,
         scale = None,
-        shared_qk = False
+        shared_qk = False,
+        autopad=False,
+        causal=False
     ):
         super().__init__()
         look_forward = 0
@@ -66,11 +70,13 @@ class LocalAttention(layers.Layer):
         self.window_size = window_size
         self.exact_windowsize = exact_windowsize
         self.shared_qk = shared_qk
+        self.autopad = autopad
 
         self.look_backward = look_backward
         self.look_forward = look_forward
 
         self.dropout = layers.Dropout(dropout)
+        self.causal = causal
 
 
     def call(
@@ -81,10 +87,13 @@ class LocalAttention(layers.Layer):
 
 
 
-        shape, pad_value, window_size,  look_backward, look_forward, shared_qk = q.shape, -1, default(window_size, self.window_size), self.look_backward, self.look_forward, self.shared_qk
+        shape, pad_value, window_size,  look_backward, look_forward, shared_qk, autopad, causal = q.shape, -1, default(window_size, self.window_size), self.look_backward, self.look_forward, self.shared_qk, self.autopad, self.causal
 
         # https://github.com/arogozhnikov/einops/blob/master/docs/4-pack-and-unpack.ipynb
         (q, packed_shape), (k, _), (v, _) = map(lambda t: pack([t], '* n d'), (q, k, v))
+        if autopad:
+            orig_seq_len = q.shape[1]
+            (needed_pad, q), (_, k), (_, v) = map(lambda t: pad_sequence_to_multiple_of(t, self.window_size, -2), (q, k, v))
 
 
         
@@ -97,9 +106,9 @@ class LocalAttention(layers.Layer):
         windows = n // window_size
 
         if shared_qk:
-            print(f"Before norm {k.shape}")
             k = l2norm(k)
-            print(f"After norm {k.shape}")
+
+        
 
         seq = tf.range(n)
         b_t = rearrange(seq, '(w n) -> 1 w n', w = windows)
@@ -133,14 +142,37 @@ class LocalAttention(layers.Layer):
         attn = tf.nn.softmax(sim, axis=-1)
         attn = self.dropout(attn)
 
-        # aggregation
-        out = tf.einsum('b h i j, b h j e -> b h i e', attn, bv)
+        mask_value = max_neg_value(sim)
+
         if shared_qk:
             self_mask = bq_t == bq_k
-            tf.where(self_mask, tf.fill(tf.shape(sim), TOKEN_SELF_ATTN_VALUE), sim)
+            sim = tf.where(self_mask, tf.fill(tf.shape(sim), TOKEN_SELF_ATTN_VALUE), sim)
             del self_mask
 
-        out = rearrange(out, 'b w n d -> b (w n) d')
+        if causal:
+            causal_mask = bq_t < bq_k
+
+            if self.exact_windowsize:
+                max_causal_window_size = (self.window_size * self.look_backward)
+                causal_mask = causal_mask | (bq_t > (bq_k + max_causal_window_size))
+
+            sim = tf.where(causal_mask, tf.fill(tf.shape(sim), mask_value), sim)
+            del causal_mask
+
+
+        if autopad and needed_pad:
+            pad_mask = bq_k == pad_value
+            sim = tf.where(pad_mask, tf.fill(tf.shape(sim), mask_value), sim)
+            del pad_mask
+
+        # aggregation
+        sim = tf.einsum('b h i j, b h j e -> b h i e', attn, bv)
+
+        out = rearrange(sim, 'b w n d -> b (w n) d')
+
+
+        if autopad:
+            out = out[:, :orig_seq_len, :]
 
         out, *_ = unpack(out, packed_shape, '* n d')
         return out
