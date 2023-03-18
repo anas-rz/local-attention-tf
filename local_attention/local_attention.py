@@ -3,7 +3,7 @@ import tensorflow.keras.backend as K
 import math
 from tensorflow.keras import layers
 from einops import rearrange, pack, unpack
-
+TOKEN_SELF_ATTN_VALUE = -5e4
 
 
 
@@ -18,7 +18,7 @@ def max_neg_value(tensor):
 
 def l2norm(tensor):
     dtype = tensor.dtype
-    normed = tf.norm(tensor, axis = -1)
+    normed, _ = tf.linalg.normalize(tensor, axis = -1, ord=2)
     return tf.cast(normed, dtype)
 
 def pad_sequence_to_multiple_of(seq, multiple, axis):
@@ -41,9 +41,8 @@ def pad_sequence_to_multiple_of(seq, multiple, axis):
 def look_around(x, backward=1, forward=0, pad_value=-1, axis=2):
     t = K.int_shape(x)[1]
     tensor_rank = tf.rank(x)
-    f_i = len(K.int_shape(x)) - axis - 1
     padding_tensor = tf.zeros((tensor_rank, 2), dtype=tf.int32)
-    padding_tensor = tf.tensor_scatter_nd_update(padding_tensor, [[f_i, 0], [f_i, 1]], [backward, forward])
+    padding_tensor = tf.tensor_scatter_nd_update(padding_tensor, [[1, 0], [1, 1]], [backward, forward])
     padded_x = tf.pad(x, padding_tensor, constant_values=pad_value)
     tensors = [padded_x[:, ind:(ind + t), ...] for ind in range(forward + backward + 1)]
     return tf.concat(tensors, axis=axis)
@@ -57,6 +56,7 @@ class LocalAttention(layers.Layer):
         dropout = 0.,
         exact_windowsize = False,
         scale = None,
+        shared_qk = False
     ):
         super().__init__()
         look_forward = 0
@@ -65,7 +65,7 @@ class LocalAttention(layers.Layer):
 
         self.window_size = window_size
         self.exact_windowsize = exact_windowsize
-
+        self.shared_qk = shared_qk
 
         self.look_backward = look_backward
         self.look_forward = look_forward
@@ -81,7 +81,7 @@ class LocalAttention(layers.Layer):
 
 
 
-        shape, pad_value, window_size,  look_backward, look_forward = q.shape, -1, default(window_size, self.window_size), self.look_backward, self.look_forward
+        shape, pad_value, window_size,  look_backward, look_forward, shared_qk = q.shape, -1, default(window_size, self.window_size), self.look_backward, self.look_forward, self.shared_qk
 
         # https://github.com/arogozhnikov/einops/blob/master/docs/4-pack-and-unpack.ipynb
         (q, packed_shape), (k, _), (v, _) = map(lambda t: pack([t], '* n d'), (q, k, v))
@@ -95,6 +95,14 @@ class LocalAttention(layers.Layer):
         assert (n % window_size) == 0, f'sequence length {n} must be divisible by window size {window_size} for local attention'
 
         windows = n // window_size
+
+        if shared_qk:
+            print(f"Before norm {k.shape}")
+            k = l2norm(k)
+            print(f"After norm {k.shape}")
+
+        seq = tf.range(n)
+        b_t = rearrange(seq, '(w n) -> 1 w n', w = windows)
 
 
         # bucketing
@@ -112,6 +120,13 @@ class LocalAttention(layers.Layer):
         bk = look_around(bk, **look_around_kwargs)
         bv = look_around(bv, **look_around_kwargs)
 
+        bq_t = b_t
+        bq_k = look_around(b_t, **look_around_kwargs)
+
+        bq_t = rearrange(bq_t, '... i -> ... i 1')
+        bq_k = rearrange(bq_k, '... j -> ... 1 j')
+
+
         sim = tf.einsum('b h i e, b h j e -> b h i j', bq, bk)
         # attention
 
@@ -120,6 +135,11 @@ class LocalAttention(layers.Layer):
 
         # aggregation
         out = tf.einsum('b h i j, b h j e -> b h i e', attn, bv)
+        if shared_qk:
+            self_mask = bq_t == bq_k
+            tf.where(self_mask, tf.fill(tf.shape(sim), TOKEN_SELF_ATTN_VALUE), sim)
+            del self_mask
+
         out = rearrange(out, 'b w n d -> b (w n) d')
 
         out, *_ = unpack(out, packed_shape, '* n d')
