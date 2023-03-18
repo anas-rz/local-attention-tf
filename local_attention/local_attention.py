@@ -85,6 +85,7 @@ class LocalAttention(layers.Layer):
 
         # https://github.com/arogozhnikov/einops/blob/master/docs/4-pack-and-unpack.ipynb
         (q, packed_shape), (k, _), (v, _) = map(lambda t: pack([t], '* n d'), (q, k, v))
+        print(q.shape)
 
         # auto padding
 
@@ -123,6 +124,7 @@ class LocalAttention(layers.Layer):
 
         out = tf.einsum('b h i j, b h j e -> b h i e', attn, bv)
         out = rearrange(out, 'b w n d -> b (w n) d')
+        print(out.shape)
 
         out, *_ = unpack(out, packed_shape, '* n d')
         return out
