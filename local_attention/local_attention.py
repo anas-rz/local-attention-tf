@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import math
 from tensorflow.keras import layers
-from einops import rearrange, pack, unpack
+from einops import rearrange, pack, unpack, repeat
 TOKEN_SELF_ATTN_VALUE = -5e4
 
 
@@ -49,6 +49,9 @@ def look_around(x, backward=1, forward=0, pad_value=-1, axis=2):
     tensors = [padded_x[:, ind:(ind + t), ...] for ind in range(forward + backward + 1)]
     return tf.concat(tensors, axis=axis)
 
+def masked_fill(tensor, mask, value):
+    return tf.where(mask, tf.fill(tf.shape(tensor), value), tensor)
+
 class LocalAttention(layers.Layer):
     def __init__(
         self,
@@ -82,7 +85,8 @@ class LocalAttention(layers.Layer):
     def call(
         self,
         q, k, v,
-        window_size = None
+        window_size = None,
+        mask = None
     ):
 
 
@@ -146,7 +150,7 @@ class LocalAttention(layers.Layer):
 
         if shared_qk:
             self_mask = bq_t == bq_k
-            sim = tf.where(self_mask, tf.fill(tf.shape(sim), TOKEN_SELF_ATTN_VALUE), sim)
+            sim = masked_fill(sim, self_mask, TOKEN_SELF_ATTN_VALUE)
             del self_mask
 
         if causal:
@@ -156,14 +160,31 @@ class LocalAttention(layers.Layer):
                 max_causal_window_size = (self.window_size * self.look_backward)
                 causal_mask = causal_mask | (bq_t > (bq_k + max_causal_window_size))
 
-            sim = tf.where(causal_mask, tf.fill(tf.shape(sim), mask_value), sim)
+            sim = masked_fill(sim, causal_mask, mask_value)
             del causal_mask
 
 
         if autopad and needed_pad:
             pad_mask = bq_k == pad_value
-            sim = tf.where(pad_mask, tf.fill(tf.shape(sim), mask_value), sim)
+            sim = masked_fill(sim, pad_mask, mask_value)
             del pad_mask
+        
+        if exists(mask):
+            batch = mask.shape[0]
+            assert (b % batch) == 0
+
+            h = b // mask.shape[0]
+
+            if autopad:
+                _, mask = pad_sequence_to_multiple_of(mask, window_size, axis = -1) #value = False
+            mask = mask == tf.ones(mask.shape)
+            print(mask)
+            mask = rearrange(mask, '... (w n) -> (...) w n', w = windows, n = window_size)
+            mask = look_around(mask, **{**look_around_kwargs, 'pad_value': False})
+            mask = rearrange(mask, '... j -> ... 1 j')
+            mask = repeat(mask, 'b ... -> (b h) ...', h = h)
+            sim = masked_fill(sim, ~mask, mask_value)
+            del mask
 
         # aggregation
         sim = tf.einsum('b h i j, b h j e -> b h i e', attn, bv)
