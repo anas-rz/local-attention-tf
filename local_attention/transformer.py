@@ -1,67 +1,46 @@
-from tensorflow.keras import layers
+# Define GEGLU layer
+class GEGLU(tf.keras.layers.Layer):
+    def call(self, x):
+        x, gate = tf.split(x, num_or_size_splits=2, axis=-1)
+        return x * tf.nn.gelu(gate)
 
-class LocalMHA(layers.Layer):
+# Define FeedForward layer
+def FeedForward(dim, mult=4, dropout=0.):
+    inner_dim = int(dim * mult * 2 / 3)
+
+    return tf.keras.Sequential([
+        tf.keras.layers.LayerNormalization(epsilon=1e-6),
+        tf.keras.layers.Dense(inner_dim * 2, use_bias=False),
+        GEGLU(),
+        tf.keras.layers.Dropout(dropout),
+        tf.keras.layers.Dense(dim, use_bias=False)
+    ])
+
+class DynamicPositionBias(tf.keras.layers.Layer):
     def __init__(
         self,
-        window_size,
-        dim_head = 64,
-        heads = 8,
-        dropout = 0.,
-        causal = False,
-        prenorm = False,
-        qk_rmsnorm = False,
-        qk_scale = 8,
-        # use_xpos = False,
-        xpos_scale_base = None,
-        **kwargs
+        dim,
+        heads
     ):
-        super().__init__()        
-        self.inner_dim = dim_head * heads
-        self.window_size = window_size
-        self.causal = causal
+        super().__init__()
+        self.mlp = tf.keras.Sequential([
+            tf.keras.layers.Dense(dim, activation=tf.nn.silu),
+            tf.keras.layers.Dense(dim, activation=tf.nn.silu),
+            tf.keras.layers.Dense(heads)
+        ])
 
-        self.heads = heads
-        self.qk_rmsnorm = qk_rmsnorm
-        self.prenorm = prenorm
+    def call(self, inputs):
+        i, j = inputs
+        assert j >= i
 
-    def build(self, input_shape):
-        dim = input_shape[-1]
-        self.norm = layers.LayerNormalization(axis=-1) if self.prenorm else None
+        rel_dist = tf.range(j, dtype=tf.float32)
+        bias = self.mlp(tf.expand_dims(rel_dist, axis=-1))
+        bias = tf.transpose(bias, perm=[1, 0])
 
-        self.to_qkv = layers.Dense(self.inner_dim * 3, use_bias = False)
+        i_seq = tf.range(j - i, j)
+        j_seq = tf.range(j)
+        rel_dist_indices = tf.abs(tf.expand_dims(i_seq, axis=-1) - tf.expand_dims(j_seq, axis=0))
 
-
-        # if self.qk_rmsnorm:
-        #     self.q_scale = nn.Parameter(torch.ones(dim_head))
-        #     self.k_scale = nn.Parameter(torch.ones(dim_head))
-
-        self.attn_fn = LocalAttention(
-            window_size = self.window_size,
-            causal = self.causal,
-            autopad = True,
-            scale = (self.qk_scale if self.qk_rmsnorm else None),
-            exact_windowsize = True,
-            # use_xpos = self.use_xpos,
-            # xpos_scale_base = self.xpos_scale_base,
-            # **kwargs
-        )
-
-        self.to_out = layers.Dense(dim, use_bias = False)
-
-    def call(self, x, mask = None, attn_bias = None):
-        if exists(self.norm):
-            x = self.norm(x)
-
-        q, k, v = tf.split(self.to_qkv(x),3, axis=-1)
-
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), (q, k, v)) 
-
-        # if self.qk_rmsnorm:
-        #     q, k = map(l2norm, (q, k))
-        #     q = q * self.q_scale
-        #     k = k * self.k_scale
-
-        out = self.attn_fn(q, k, v, mask = mask)
-
-        out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.to_out(out)
+        bias = tf.gather(bias, rel_dist_indices)
+        bias = tf.transpose(bias, perm=[2, 0, 1])
+        return bias
