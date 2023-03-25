@@ -5,7 +5,8 @@ To do:
 
 - [X] Implementing rotary module
 - [X] Local Attention Module (partial done without much features.)
-- [ ] Transformer Module
+- [X] Transformer Module
+- [ ] Restructure and improve code
 - [ ] Testing of the framework on real world dataset
 - [ ] Exposing as PyPI Package
 - [ ] Celebrating :gift_heart:
