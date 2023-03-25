@@ -1,3 +1,6 @@
+import tensorflow as tf
+from tensorflow.keras import layers
+
 # Define GEGLU layer
 class GEGLU(tf.keras.layers.Layer):
     def call(self, x):
@@ -44,3 +47,59 @@ class DynamicPositionBias(tf.keras.layers.Layer):
         bias = tf.gather(bias, rel_dist_indices)
         bias = tf.transpose(bias, perm=[2, 0, 1])
         return bias
+
+def LocalTransformer(
+    num_tokens,
+    max_seq_len,
+    dim,
+    depth,
+    causal=True,
+    local_attn_window_size=512,
+    dim_head=64,
+    heads=8,
+    ff_mult=4,
+    attn_dropout=0.0,
+    ff_dropout=0.0,
+    ignore_index=-1,
+    use_xpos=False,
+    xpos_scale_base=None,
+    use_dynamic_pos_bias=False,
+    **kwargs
+):
+    token_emb = layers.Embedding(num_tokens, dim)
+    pos_emb = layers.Embedding(max_seq_len, dim)
+
+    inputs = layers.Input(shape=(max_seq_len,))
+    x = token_emb(inputs)
+
+    n = max_seq_len
+    attn_bias = None
+    if use_dynamic_pos_bias:
+        w = local_attn_window_size
+        dynamic_pos_bias = DynamicPositionBias(dim=dim // 2, heads=heads)
+        attn_bias = dynamic_pos_bias(w, w * 2)
+
+    for _ in range(depth):
+        attn = LocalMHA(
+            local_attn_window_size,
+            dim_head=dim_head,
+            heads=heads,
+            dropout=attn_dropout,
+            causal=causal,
+            use_xpos=use_xpos,
+            xpos_scale_base=xpos_scale_base,
+            use_rotary_pos_emb=not use_dynamic_pos_bias,
+            prenorm=True,
+            **kwargs
+        )
+
+        ff = FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
+
+        x = attn(x, mask=None, attn_bias=attn_bias) + x
+
+        x = ff(x) + x
+
+    logits = layers.Dense(num_tokens, use_bias=False)(x)
+    logits = layers.LayerNormalization()(logits)
+
+    return tf.keras.Model(inputs=inputs, outputs=logits)
