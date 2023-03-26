@@ -6,7 +6,9 @@ To do:
 - [X] Implementing rotary module
 - [X] Local Attention Module (partial done without much features.)
 - [X] Transformer Module
-- [ ] Restructure and improve code
-- [ ] Testing of the framework on real world dataset
-- [ ] Exposing as PyPI Package
+- [X] Restructure and improve code
+- [X] Provide Applied examples for Audio, Image, Text
+- [X] Testing of the framework on real world dataset
+- [X] Exposing as PyPI Package
+- [ ] Documentation of the Code
 - [ ] Celebrating :gift_heart:
