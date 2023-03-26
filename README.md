@@ -68,7 +68,7 @@ print(out.shape) # TensorShape([1, 100])
 ```
 
 ## XLA Support
-Inspired from [Sayak Paul](https://github.com/sayakpaul/maxim-tf#xla-support), models have XLA support leading to a significant reduce in latency. See [benchmark_xla.py](./benchmark_xla.py) done for Text Model
+Inspired from [Sayak Paul](https://github.com/sayakpaul/maxim-tf#xla-support), models have XLA support leading to a significant reduce in latency. See [benchmarking](./benchmark_xla.py) done for TextClassifier.
 
 
 To do:
