@@ -62,7 +62,7 @@ print(out.shape) # TensorShape([1, 2])
 from local_attention_tf.audio import RawAudioClassifier
 import tensorflow as tf
 model = RawAudioClassifier(maxlen=16000, local_attn_window_size=40, dim_head=64, depth=2, mlp_head_units=[64, 32],  projection_dim=64, num_heads=8, num_classes=100)
-dummy_inputs = tf.random.uniform((1, 1600, 1))
+dummy_inputs = tf.random.uniform((1, 16000, 1))
 out =  model(dummy_inputs)
 print(out.shape) # TensorShape([1, 100])
 ```
