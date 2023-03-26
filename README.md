@@ -2,7 +2,7 @@
 
 ![Local Window Attention](https://github.com/lucidrains/local-attention/blob/master/diagram.png?raw=true "Local Window Attention")
 
-[Inspired from](https://github.com/lucidrains/local-attention/).
+[Converted from PyTorch by Phil Wang](https://github.com/lucidrains/local-attention/).
 
 TensorFlow implementation of Local Windowed Attention with classifiers for Language Modeling, Image and Audio. Model codes are xla compatible.
 
@@ -10,9 +10,10 @@ TensorFlow implementation of Local Windowed Attention with classifiers for Langu
 # Usage
 
 ## Installation
+Make sure to install the latest version
 
 ```
-pip install local-attention-tf
+pip install local-attention-tf==0.0.3
 ```
 ## Using Transformer Layer
 
