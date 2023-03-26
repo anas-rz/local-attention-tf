@@ -43,7 +43,7 @@ class PatchEncoder(layers.Layer):
 def ImageClassifier(img_size=224, patch_size=16, projection_dim=196, depth=6, local_attn_window_size=28,
                     dim_head=196, num_heads=8, num_classes=2, mlp_head_units = [2048, 1024]  # Size of the dense layers of the final classifier
 ):
-    inputs = keras.layers.Input(shape=(image_size, image_size, 3))
+    inputs = keras.layers.Input(shape=(img_size, img_size, 3))
     patches = Patches(patch_size)(inputs)
     num_patches = (img_size // patch_size) ** 2
     encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
