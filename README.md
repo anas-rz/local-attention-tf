@@ -74,7 +74,7 @@ Inspired from [Sayak Paul](https://github.com/sayakpaul/maxim-tf#xla-support), m
 To do:
 
 - [X] Implementing rotary module
-- [X] Local Attention Module (partial done without much features.)
+- [X] Local Attention Module 
 - [X] Transformer Module
 - [X] Restructure and improve code
 - [X] Provide Applied examples for Audio, Image, Text
