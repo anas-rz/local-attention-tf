@@ -81,4 +81,5 @@ To do:
 - [X] Testing of the framework on real world dataset
 - [X] Exposing as PyPI Package
 - [X] Documentation of the Code
+- [ ] Add more features to LocalAttention Layer
 - [ ] Celebrating :gift_heart:
