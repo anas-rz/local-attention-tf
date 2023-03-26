@@ -20,6 +20,7 @@ pip install local-attention-tf==0.0.3
 
 ```
 from local_attention_tf import LocalTransformer
+import tensorflow as tf
 attn_layer = LocalTransformer(256, 3, local_attn_window_size=128, dim_head=64,
     heads=8,
     ff_mult=4,
@@ -35,6 +36,7 @@ The text classifier employing local attention has been trained/tested on IMDB mo
 
 ```
 from local_attention_tf.text import TextClassifier
+import tensorflow as tf
 model = TextClassifier(maxlen = 200, vocab_size = 20000, num_classes=2, embed_dim=32, depth=3, local_attn_window_size=8, mlp_head_units = [2048, 1024])
 dummy_inputs = tf.random.uniform((1, 200))
 out =  model(dummy_inputs)
@@ -46,6 +48,7 @@ The image classifier employing local attention has been trained/tested on CIFAR 
 
 ```
 from local_attention_tf.image import ImageClassifier
+import tensorflow as tf
 model = ImageClassifier(img_size=224, patch_size=16, projection_dim=196, depth=6, local_attn_window_size=28,
                     dim_head=196, num_heads=8, num_classes=2, mlp_head_units = [2048, 1024]  )
 dummy_inputs = tf.random.uniform((1, 224, 224, 3))
@@ -57,6 +60,7 @@ print(out.shape) # TensorShape([1, 2])
 
 ```
 from local_attention_tf.audio import RawAudioClassifier
+import tensorflow as tf
 model = RawAudioClassifier(maxlen=16000, local_attn_window_size=40, dim_head=64, depth=2, mlp_head_units=[64, 32],  projection_dim=64, num_heads=8, num_classes=100)
 dummy_inputs = tf.random.uniform((1, 1600, 1))
 out =  model(dummy_inputs)
@@ -64,7 +68,7 @@ print(out.shape) # TensorShape([1, 100])
 ```
 
 ## XLA Support
-Inspired from [Sayak Paul](https://github.com/sayakpaul/maxim-tf#xla-support), models have XLA support leading to a significant reduce in latency. See [benchmark_xla.py](./benchmark_xla.py)
+Inspired from [Sayak Paul](https://github.com/sayakpaul/maxim-tf#xla-support), models have XLA support leading to a significant reduce in latency. See [benchmark_xla.py](./benchmark_xla.py) done for Text Model
 
 
 To do:
