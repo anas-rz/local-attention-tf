@@ -14,9 +14,9 @@ def FeedForward(dim, mult=4, dropout=0.):
     ])
 
 def LocalTransformer(
-    num_tokens,
     dim,
     depth,
+    out_dim=None,
     local_attn_window_size=512,
     dim_head=64,
     heads=8,
@@ -25,7 +25,8 @@ def LocalTransformer(
     ff_dropout=0.0,
     **kwargs
 ):
-    
+    if not out_dim:
+        out_dim = dim
     def _apply(x):
         
         for _ in range(depth):
@@ -46,10 +47,9 @@ def LocalTransformer(
             x = ff(x)
             x = layers.Add()([x_skip, x]) 
 
-        logits = layers.Dense(num_tokens, use_bias=False)(x)
+        logits = layers.Dense(out_dim, use_bias=False)(x)
         logits = layers.LayerNormalization()(logits)
         return logits
-
     return _apply
 
 

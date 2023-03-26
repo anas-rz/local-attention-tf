@@ -9,7 +9,6 @@ def TextClassifier(maxlen, vocab_size, num_classes, embed_dim=32, depth=3, local
     inputs = layers.Input(shape=(maxlen,))
     audio_emb = emb_layer(inputs)
     representation = LocalTransformer(
-        maxlen,
         embed_dim,
         depth,
         local_attn_window_size = local_attn_window_size)(audio_emb)

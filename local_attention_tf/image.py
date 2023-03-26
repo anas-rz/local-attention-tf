@@ -47,7 +47,7 @@ def ImageClassifier(img_size=224, patch_size=16, projection_dim=196, depth=6, lo
     patches = Patches(patch_size)(inputs)
     num_patches = (img_size // patch_size) ** 2
     encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
-    encoded_patches = LocalTransformer(num_patches, projection_dim, depth, 
+    encoded_patches = LocalTransformer(projection_dim, depth, 
                         local_attn_window_size=local_attn_window_size, dim_head=dim_head, heads=num_heads)(encoded_patches)
     representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
     representation = layers.GlobalAveragePooling1D()(representation)

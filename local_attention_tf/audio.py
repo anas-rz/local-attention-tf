@@ -24,13 +24,11 @@ class AudioEmbedding(layers.Layer):
         x = self.conv2(x)
         return self.conv3(x)
      
-def RawAudioClassifier( maxlen=16000, local_attn_window_size=40, dim_head=64, depth=2, mlp_head_units=[64, 32],
-                    num_patches=12, projection_dim=64, num_heads=8, num_classes=100):
+def RawAudioClassifier( maxlen=16000, local_attn_window_size=40, dim_head=64, depth=2, mlp_head_units=[64, 32],  projection_dim=64, num_heads=8, num_classes=100):
     inputs = keras.layers.Input(shape=(16000, 1))
     encoded_audio = AudioEmbedding(num_hid=projection_dim, maxlen=maxlen)(inputs)
-    audio_segments = K.int_shape(encoded_audio)[1]
 
-    encoded_audio = LocalTransformer(audio_segments, projection_dim, depth, 
+    encoded_audio = LocalTransformer( projection_dim, depth, 
                         local_attn_window_size=local_attn_window_size, dim_head=dim_head, heads=num_heads)(encoded_audio)
     representation = layers.LayerNormalization(epsilon=1e-6)(encoded_audio)
     representation = layers.GlobalAveragePooling1D()(representation)
