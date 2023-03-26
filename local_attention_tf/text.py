@@ -14,9 +14,6 @@ def TextClassifier(maxlen, vocab_size, num_classes, embed_dim=32, depth=3, local
         depth,
         local_attn_window_size = local_attn_window_size)(x)
     x = layers.GlobalAveragePooling1D()(x)
-    if num_classes == 1:
-        outputs = layers.Dense(num_classes, activation="sigmoid")(x)
-    else:
-        outputs = layers.Dense(num_classes, activation="softmax")(x)
+    outputs = layers.Dense(num_classes)(x)
 
     return keras.Model(inputs=inputs, outputs=outputs)
