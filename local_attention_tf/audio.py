@@ -25,7 +25,7 @@ class AudioEmbedding(layers.Layer):
         return self.conv3(x)
      
 def RawAudioClassifier( maxlen=16000, local_attn_window_size=40, dim_head=64, depth=2, mlp_head_units=[64, 32],  projection_dim=64, num_heads=8, num_classes=100):
-    inputs = keras.layers.Input(shape=(16000, 1))
+    inputs = keras.layers.Input(shape=(maxlen, 1))
     encoded_audio = AudioEmbedding(num_hid=projection_dim, maxlen=maxlen)(inputs)
 
     encoded_audio = LocalTransformer( projection_dim, depth, 
