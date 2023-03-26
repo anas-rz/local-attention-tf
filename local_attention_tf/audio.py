@@ -2,7 +2,7 @@ from tensorflow.keras import layers
 from tensorflow import keras
 import tensorflow.keras.backend as K
 import tensorflow as tf
-from .blocks import LocalTransformer
+from .blocks import LocalTransformer, mlp
 
 
 class AudioEmbedding(layers.Layer):
