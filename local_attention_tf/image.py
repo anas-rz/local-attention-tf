@@ -46,15 +46,16 @@ def mlp(x, hidden_units, dropout_rate):
 
 
 def ImageClassifier(img_size=224, patch_size=16, projection_dim=196, depth=6, local_attn_window_size=28,
-                    dim_head=196, num_heads=8, num_classes=2, mlp_head_units = [2048, 1024] ):
-    inputs = keras.layers.Input(shape=(img_size, img_size, 3))
+                    dim_head=196, num_heads=8, num_classes=2, mlp_head_units = [2048, 1024]  # Size of the dense layers of the final classifier
+):
+    inputs = keras.layers.Input(shape=(image_size, image_size, 3))
     patches = Patches(patch_size)(inputs)
     num_patches = (img_size // patch_size) ** 2
     encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
     encoded_patches = LocalTransformer(num_patches, projection_dim, depth, 
                         local_attn_window_size=local_attn_window_size, dim_head=dim_head, heads=num_heads)(encoded_patches)
     representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-    representation = layers.Flatten()(representation)
+    representation = layers.GlobalAveragePooling1D()(representation)
     representation = layers.Dropout(0.5)(representation)
     features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.5)
     logits = layers.Dense(num_classes)(features)                     
