@@ -1,7 +1,7 @@
 from tensorflow import keras
 from tensorflow.keras import layers
 import tensorflow.keras.backend as K
-from .blocks import LocalTransformer
+from .blocks import LocalTransformer, mlp
 import tensorflow as tf
 
 
@@ -38,11 +38,6 @@ class PatchEncoder(layers.Layer):
         return encoded
 
 
-def mlp(x, hidden_units, dropout_rate):
-    for units in hidden_units:
-        x = layers.Dense(units, activation=tf.nn.gelu)(x)
-        x = layers.Dropout(dropout_rate)(x)
-    return x
 
 
 def ImageClassifier(img_size=224, patch_size=16, projection_dim=196, depth=6, local_attn_window_size=28,
