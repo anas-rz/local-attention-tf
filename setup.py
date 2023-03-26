@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
   name = 'local-attention-tf',
   packages = find_packages(),
-  version = '0.0.2',
+  version = '0.0.3',
   license='MIT',
   description = 'Local attention, window with lookback, for Image, Audio and language modeling',
   long_description_content_type = 'text/markdown',
